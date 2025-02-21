@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manually Check Fish Stock Stalker FishS²</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 50px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #authMessage {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <h1>Manually Check Fish Stock Stalker FishS²</h1>
+    <p>Click the button below to manually trigger the Lambda function.</p>
+
+    <!-- Auth Section -->
+    <div id="authSection">
+        <label for="apiKey">Enter API Key to Proceed:</label>
+        <input type="text" id="apiKey" placeholder="Enter your API key">
+        <button id="authenticateButton">Authenticate</button>
+        <p id="authMessage"></p>
+    </div>
+
+    <button id="triggerButton" style="display: none;">Here Fishy Fishy</button>
+
+    <p id="responseMessage"></p>
+
+    <script>
+        // Replace with your own API key for the simple authentication
+        const validApiKey = "";
+
+        // Auth Button Click Handler
+        document.getElementById("authenticateButton").addEventListener("click", function() {
+            const enteredApiKey = document.getElementById("apiKey").value;
+
+            if (enteredApiKey === validApiKey) {
+                // Hide auth section and show the trigger button
+                document.getElementById("authSection").style.display = "none";
+                document.getElementById("triggerButton").style.display = "inline-block";
+                document.getElementById("authMessage").textContent = ""; // Clear any previous error messages
+            } else {
+                document.getElementById("authMessage").textContent = "Invalid API Key. Please try again.";
+            }
+        });
+
+        // Trigger Button Click Handler
+        document.getElementById("triggerButton").addEventListener("click", function() {
+            // API Gateway endpoint URL (replace with your actual URL)
+            const apiUrl = "https://wecv15at29.execute-api.us-east-1.amazonaws.com/test/trigger";
+
+            // Make an HTTP POST request to the API Gateway
+            fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    message: "Manual trigger from webpage"
+                }),
+                mode: 'no-cors'  // This disables CORS checks 
+            })
+            .then(() => {
+                // Since we can't access the response, we can just notify the user that the request was sent
+                document.getElementById("responseMessage").innerHTML = "Tight lines and fish are coming your way!";
+            })
+            .catch(error => {
+                // If there was an error in making the request (such as network failure), notify the user
+                document.getElementById("responseMessage").innerHTML = "Error triggering Lambda function.";
+                console.error('Error:', error);
+            });
+        });
+    </script>
+</body>
+</html>
