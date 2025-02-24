@@ -5,6 +5,7 @@ from twilio.rest import Client
 import logging
 import time
 import boto3
+import pdfplumber
 
 # Set up logging
 logger = logging.getLogger()
@@ -28,6 +29,35 @@ def get_pdf_with_proxy(url, proxies=None):
     except requests.exceptions.RequestException as e:
         logger.error(f"Error fetching PDF through proxy: {e}")
         return None
+
+# Extract relevant information from the PDF
+def parse_pdf(file_content):
+    """
+    Parse the PDF content to extract the relevant data.
+    :param file_content: PDF content as bytes.
+    :return: List of extracted data (Date, Water, City/Town, Species, QTY, Size)
+    """
+    extracted_data = []
+    try:
+        with pdfplumber.open(file_content) as pdf:
+            # Loop through each page and extract text
+            for page in pdf.pages:
+                # Extract table data
+                table = page.extract_tables()
+                for row in table:
+                    if len(row) >= 6:  # Make sure we have all expected columns
+                        # Example row structure: [Date, Water, City/Town, Species, QTY, Size]
+                        extracted_data.append({
+                            "Date": row[0],
+                            "Water": row[1],
+                            "City/Town": row[2],
+                            "Species": row[3],
+                            "QTY": row[4],
+                            "Size": row[5]
+                        })
+    except Exception as e:
+        logger.error(f"Error parsing PDF: {e}")
+    return extracted_data
 
 # Lambda handler function
 def lambda_handler(event, context):
@@ -94,22 +124,36 @@ def lambda_handler(event, context):
                         logger.error(f"Error updating hash file in S3: {e}")
                         return  # Exit function if updating the hash file fails
 
+                    # Extract data from PDF
+                    extracted_data = parse_pdf(file_content)
+
                     # Create Twilio client
                     client = Client(account_sid, auth_token)
 
-                    # Send SMS
-                    try:
-                        message = client.messages.create(
-                            body="Hello, this is the Fish Stalker letting you know that a new body of water has been stocked",
-                            from_=twilio_number,
-                            to=to_number
+                    # Send SMS for each entry in the extracted data
+                    for entry in extracted_data:
+                        # Format the message body
+                        message_body = (
+                            f"Hello, Fish stalker letting you know that on {entry['Date']}, "
+                            f"the Water in {entry['City/Town']} was stalked with {entry['QTY']} "
+                            f"{entry['Size']} inch of {entry['Species']}. Good luck and tight lines!"
                         )
 
-                        # Log message SID to confirm message sent
-                        logger.info(f"Message SID: {message.sid}")
-                    except Exception as e:
-                        logger.error(f"Error sending SMS: {e}")
-                    return  # Exit function after successful SMS send
+                        # Send SMS
+                        try:
+                            message = client.messages.create(
+                                body=message_body,
+                                from_=twilio_number,
+                                to=to_number
+                            )
+
+                            # Log message SID to confirm message sent
+                            logger.info(f"Message SID: {message.sid}")
+                        except Exception as e:
+                            logger.error(f"Error sending SMS: {e}")
+
+                    return  # Exit function after sending the SMS
+
                 else:
                     logger.info("No file change detected.")
                     return  # Exit function since no change was detected
